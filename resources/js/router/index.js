@@ -25,12 +25,13 @@ const routes = [
       },
       {
         path: 'dashboard',
-        redirect: '/' // Redirect dashboard ke root
+        redirect: '/'
       },
       {
         path: 'users',
         name: 'Users',
-        component: User
+        component: User,
+        meta: { requiresAdmin: true } 
       },
       {
         path: 'leave-requests',
@@ -53,10 +54,26 @@ const router = createRouter({
 
 router.beforeEach((to, from, next) => {
   const isAuthenticated = !!localStorage.getItem('auth_token') 
+  const userData = JSON.parse(localStorage.getItem('user_data') || '{}')
+  const userRole = userData.role || 'user'
 
+  // Check authentication
   if (to.meta.requiresAuth && !isAuthenticated) {
     next({ name: 'Login' }) 
-  } else if (to.name === 'Login' && isAuthenticated) {
+    return
+  }
+
+  // Check admin access
+  if (to.meta.requiresAdmin && userRole !== 'admin') {
+    // Redirect non-admin users ke dashboard dengan pesan error
+    next({ name: 'Dashboard' })
+    // Optional: Tampilkan notifikasi error
+    // alert('Access denied. Admin role required.')
+    return
+  }
+
+  // Redirect ke dashboard jika sudah login dan mengakses login page
+  if (to.name === 'Login' && isAuthenticated) {
     next({ name: 'Dashboard' }) 
   } else {
     next() 

@@ -13,7 +13,8 @@
             <span class="nav-text">Dashboard</span>
           </a>
         </li>
-        <li class="nav-item">
+        <!-- Users menu - hanya tampil untuk admin -->
+        <li class="nav-item" v-if="userRole === 'admin'">
           <a
             class="nav-link"
             href="/users"
@@ -69,6 +70,12 @@ export default {
     activeMenu: {
       type: String,
       default: "dashboard"
+    }
+  },
+  computed: {
+    userRole() {
+      const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+      return userData.role || 'user';
     }
   },
   methods: {

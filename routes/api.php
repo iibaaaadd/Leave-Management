@@ -18,14 +18,24 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
-
     Route::apiResource('users', UserController::class);
     Route::get('users/{id}/audits', [UserController::class, 'audits']);
     Route::apiResource('leave-requests', LeaveRequestController::class);
-    Route::prefix('audit/leave-requests')->group(function () {
-        Route::get('/', [LeaveRequestController::class, 'auditTrail']);
-        Route::get('{id}', [LeaveRequestController::class, 'specificAuditTrail']);
+    Route::get('/leave-requests/{id}/attachment', [LeaveRequestController::class, 'viewAttachment']);
+    Route::prefix('audit')->group(function () {
+        Route::get('/leave-requests', [LeaveRequestController::class, 'auditTrail']);
+    });
+    Route::prefix('leave-approvals')->group(function () {
+        Route::get('stats', [LeaveApprovalController::class, 'stats']);
+        Route::get('pending', [LeaveApprovalController::class, 'pendingRequests']);
+        Route::get('audit-logs', [LeaveApprovalController::class, 'auditLogs']);
+        Route::get('audit-logs/{auditId}', [LeaveApprovalController::class, 'auditDetail']);
+        Route::post('bulk-approve', [LeaveApprovalController::class, 'bulkApprove']);
+        Route::post('{leaveRequestId}/approve', [LeaveApprovalController::class, 'approve']);
+        Route::get('{leaveRequestId}/attachment', [LeaveApprovalController::class, 'viewAttachment']);
+        Route::get('{leaveRequestId}/attachment-direct', [LeaveApprovalController::class, 'viewAttachmentDirect']);
+        Route::get('{leaveRequestId}/stream', [LeaveApprovalController::class, 'streamAttachment']);
+        Route::get('{leaveRequestId}/download', [LeaveApprovalController::class, 'downloadAttachment'])->name('leave-approval.download-attachment');
     });
     Route::apiResource('leave-approvals', LeaveApprovalController::class);
-    Route::post('/leave-approvals/{leaveRequestId}/approve', [LeaveApprovalController::class, 'approve']);
 });
