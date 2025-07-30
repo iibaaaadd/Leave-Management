@@ -80,22 +80,44 @@ export default {
       const routeName = this.$route.name;
       const routePath = this.$route.path;
       
-      // Set active menu berdasarkan route
-      if (routePath.includes('/users')) {
-        this.activeMenu = 'users';
-      } else if (routePath.includes('/leave-requests')) {
-        this.activeMenu = 'leave-requests';
-      } else if (routePath.includes('/leave-approvals')) {
-        this.activeMenu = 'leave-approvals';
-      } else if (routePath.includes('/settings')) {
-        this.activeMenu = 'settings';
-      } else {
-        this.activeMenu = 'dashboard';
+      // Set active menu berdasarkan route name atau path
+      switch(routeName) {
+        case 'Users':
+        case 'UserManagement':
+          this.activeMenu = 'users';
+          break;
+        case 'LeaveRequests':
+          this.activeMenu = 'leave-requests';
+          break;
+        case 'LeaveApprovals':
+          this.activeMenu = 'leave-approvals';
+          break;
+        case 'Settings':
+          this.activeMenu = 'settings';
+          break;
+        case 'Dashboard':
+        default:
+          this.activeMenu = 'dashboard';
+          break;
       }
     },
     
     setActiveMenu(menu) {
       this.activeMenu = menu;
+      
+      // Navigate ke route yang sesuai
+      const routeMap = {
+        'dashboard': '/',
+        'users': '/users',
+        'leave-requests': '/leave-requests',
+        'leave-approvals': '/leave-approvals',
+        'settings': '/settings'
+      };
+      
+      const targetRoute = routeMap[menu];
+      if (targetRoute && this.$route.path !== targetRoute) {
+        this.$router.push(targetRoute);
+      }
     },
     
     async logout() {

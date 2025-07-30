@@ -1,5 +1,7 @@
 <?php
 
+// Update LeaveRequestController.php - Tambahkan method ini
+
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
@@ -8,6 +10,7 @@ use App\Models\LeaveRequest;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use OwenIt\Auditing\Models\Audit;
 
 class LeaveRequestController extends Controller
 {
@@ -103,5 +106,102 @@ class LeaveRequestController extends Controller
     {
         $leave = LeaveRequest::with(['user', 'approval'])->findOrFail($id);
         return response()->json($leave);
+    }
+
+    /**
+     * Get audit trail for leave requests
+     */
+    public function auditTrail(Request $request)
+    {
+        try {
+            $perPage = $request->get('per_page', 10);
+            $page = $request->get('page', 1);
+
+            // Get audits for LeaveRequest model only
+            $audits = Audit::where('auditable_type', LeaveRequest::class)
+                ->with('user') // Include user relationship if available
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage, ['*'], 'page', $page);
+
+            // Transform the data to include user name
+            $transformedAudits = $audits->getCollection()->map(function ($audit) {
+                return [
+                    'id' => $audit->id,
+                    'auditable_type' => $audit->auditable_type,
+                    'auditable_id' => $audit->auditable_id,
+                    'user_id' => $audit->user_id,
+                    'user_name' => $audit->user ? $audit->user->name : ($audit->user_id ? 'User #' . $audit->user_id : null),
+                    'event' => $audit->event,
+                    'old_values' => $audit->old_values,
+                    'new_values' => $audit->new_values,
+                    'url' => $audit->url,
+                    'ip_address' => $audit->ip_address,
+                    'user_agent' => $audit->user_agent,
+                    'tags' => $audit->tags,
+                    'created_at' => $audit->created_at,
+                    'updated_at' => $audit->updated_at,
+                ];
+            });
+
+            // Create response with pagination meta
+            return response()->json([
+                'data' => $transformedAudits,
+                'current_page' => $audits->currentPage(),
+                'last_page' => $audits->lastPage(),
+                'per_page' => $audits->perPage(),
+                'total' => $audits->total(),
+                'from' => $audits->firstItem(),
+                'to' => $audits->lastItem(),
+                'has_more_pages' => $audits->hasMorePages(),
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error fetching audit trail',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get audit trail for a specific leave request
+     */
+    public function specificAuditTrail($id)
+    {
+        try {
+            $leave = LeaveRequest::findOrFail($id);
+            
+            $audits = Audit::where('auditable_type', LeaveRequest::class)
+                ->where('auditable_id', $id)
+                ->with('user')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Transform the data
+            $transformedAudits = $audits->map(function ($audit) {
+                return [
+                    'id' => $audit->id,
+                    'user_name' => $audit->user ? $audit->user->name : 'System',
+                    'event' => $audit->event,
+                    'old_values' => $audit->old_values,
+                    'new_values' => $audit->new_values,
+                    'ip_address' => $audit->ip_address,
+                    'user_agent' => $audit->user_agent,
+                    'created_at' => $audit->created_at,
+                ];
+            });
+
+            return response()->json([
+                'message' => 'Audit trail for leave request',
+                'leave_request' => $leave,
+                'audit_trail' => $transformedAudits
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error fetching specific audit trail',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

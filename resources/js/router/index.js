@@ -4,7 +4,8 @@ import LoginForm from '../pages/LoginForm.vue'
 import Approve from '../pages/LeaveApprove.vue'
 import Request from '../pages/LeaveRequest.vue'
 import User from '../pages/UserManagement.vue'
-import Dashboard from '../Dashboard.vue'
+import Dashboard from '../pages/DashboardContent.vue'
+import DashboardLayout from '../layouts/DashboardLayout.vue'
 
 const routes = [
   {
@@ -13,25 +14,35 @@ const routes = [
     component: LoginForm
   },
   {
-    path: '/user',
-    name: 'user',
-    component: User
-  },
-  {
-    path: '/request',
-    name: 'request',
-    component: Request
-  },
-  {
-    path: '/approve',
-    name: 'approve',
-    component: Approve
-  },
-  {
-    path: '/dashboard',
-    name: 'Dashboard',
-    component: Dashboard,
-    meta: { requiresAuth: true }
+    path: '/',
+    component: DashboardLayout, // Layout sebagai parent
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'Dashboard',
+        component: Dashboard
+      },
+      {
+        path: 'dashboard',
+        redirect: '/' // Redirect dashboard ke root
+      },
+      {
+        path: 'users',
+        name: 'Users',
+        component: User
+      },
+      {
+        path: 'leave-requests',
+        name: 'LeaveRequests',
+        component: Request
+      },
+      {
+        path: 'leave-approvals',
+        name: 'LeaveApprovals',
+        component: Approve
+      }
+    ]
   }
 ]
 
@@ -44,11 +55,11 @@ router.beforeEach((to, from, next) => {
   const isAuthenticated = !!localStorage.getItem('auth_token') 
 
   if (to.meta.requiresAuth && !isAuthenticated) {
-    next({ name: 'Login' }) // redirect ke login jika belum login
+    next({ name: 'Login' }) 
   } else if (to.name === 'Login' && isAuthenticated) {
-    next({ name: 'Dashboard' }) // jika sudah login dan buka login lagi, arahkan ke dashboard
+    next({ name: 'Dashboard' }) 
   } else {
-    next() // izinkan navigasi
+    next() 
   }
 })
 

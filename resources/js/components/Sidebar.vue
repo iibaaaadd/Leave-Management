@@ -16,9 +16,9 @@
         <li class="nav-item">
           <a
             class="nav-link"
-            href="/user"
-            @click="setActiveMenu('user')"
-            :class="{ active: activeMenu === 'user' }"
+            href="/users"
+            @click="setActiveMenu('users')"
+            :class="{ active: activeMenu === 'users' }"
           >
             <span class="nav-icon">👥</span>
             <span class="nav-text">Users</span>
@@ -27,9 +27,9 @@
         <li class="nav-item">
           <a
             class="nav-link"
-            href="/request"
-            @click="setActiveMenu('request')"
-            :class="{ active: activeMenu === 'request' }"
+            href="/leave-requests"
+            @click="setActiveMenu('leave-requests')"
+            :class="{ active: activeMenu === 'leave-requests' }"
           >
             <span class="nav-icon">📝</span>
             <span class="nav-text">Request</span>
@@ -38,9 +38,9 @@
         <li class="nav-item">
           <a
             class="nav-link"
-            href="/approve"
-            @click="setActiveMenu('approve')"
-            :class="{ active: activeMenu === 'approve' }"
+            href="/leave-approvals"
+            @click="setActiveMenu('leave-approvals')"
+            :class="{ active: activeMenu === 'leave-approvals' }"
           >
             <span class="nav-icon">✅</span>
             <span class="nav-text">Approve</span>
