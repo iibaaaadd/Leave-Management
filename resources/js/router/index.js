@@ -15,7 +15,7 @@ const routes = [
   },
   {
     path: '/',
-    component: DashboardLayout, // Layout sebagai parent
+    component: DashboardLayout, 
     meta: { requiresAuth: true },
     children: [
       {

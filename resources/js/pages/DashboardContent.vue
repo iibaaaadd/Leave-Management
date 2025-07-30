@@ -12,15 +12,12 @@
                         Welcome back, {{ currentUser.name }}!
                     </p>
                 </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-outline-primary btn-sm">
-                        <span class="me-1">📥</span>
-                        Export
-                    </button>
-                    <button class="btn btn-primary btn-sm">
-                        <span class="me-1">➕</span>
-                        Add New
-                    </button>
+                <div
+                    v-if="loading"
+                    class="spinner-border text-primary"
+                    role="status"
+                >
+                    <span class="visually-hidden">Loading...</span>
                 </div>
             </div>
 
@@ -30,8 +27,8 @@
                     <div class="stat-card">
                         <div class="stat-icon">👥</div>
                         <div class="stat-info">
-                            <h3>{{ formatNumber(stats.totalEmployees) }}</h3>
-                            <p>Total Employees</p>
+                            <h3>{{ formatNumber(stats.totalUsers) }}</h3>
+                            <p>Total Users</p>
                         </div>
                     </div>
                 </div>
@@ -64,7 +61,45 @@
                 </div>
             </div>
 
-            <!-- Quick Actions -->
+            <!-- Filter Tahun -->
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <label for="yearFilter" class="form-label"
+                        >Filter Tahun</label
+                    >
+                    <select
+                        class="form-select"
+                        v-model="selectedYear"
+                        @change="loadMonthlyChartData"
+                    >
+                        <option
+                            v-for="year in yearOptions"
+                            :key="year"
+                            :value="year"
+                        >
+                            {{ year }}
+                        </option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Chart -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <apexchart
+                                type="bar"
+                                height="400"
+                                :options="monthlyChartOptions"
+                                :series="monthlySeries"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions & Recent Activities -->
             <div class="row mb-4">
                 <div class="col-md-6 mb-3">
                     <div class="card">
@@ -87,7 +122,8 @@
                                     <span class="me-2">✅</span>
                                     Review Approvals
                                 </button>
-                                <button v-if="userRole === 'admin'"
+                                <button
+                                    v-if="userRole === 'admin'"
                                     class="btn btn-outline-info"
                                     @click="navigateTo('/users')"
                                 >
@@ -98,13 +134,31 @@
                         </div>
                     </div>
                 </div>
+
                 <div class="col-md-6 mb-3">
                     <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">Recent Activity</h5>
+                        <div
+                            class="card-header d-flex justify-content-between align-items-center"
+                        >
+                            <h5 class="mb-0">Recent Activities</h5>
+                            <button
+                                class="btn btn-sm btn-outline-secondary"
+                                @click="refreshActivities"
+                                :disabled="loadingActivities"
+                            >
+                                <span v-if="!loadingActivities">🔄</span>
+                                <span
+                                    v-else
+                                    class="spinner-border spinner-border-sm"
+                                    role="status"
+                                ></span>
+                            </button>
                         </div>
                         <div class="card-body">
-                            <div class="activity-list">
+                            <div
+                                class="activity-list"
+                                v-if="recentActivities.length > 0"
+                            >
                                 <div
                                     v-for="activity in recentActivities"
                                     :key="activity.id"
@@ -123,94 +177,329 @@
                                     </div>
                                 </div>
                             </div>
+                            <div
+                                v-else-if="loadingActivities"
+                                class="text-center py-3"
+                            >
+                                <div
+                                    class="spinner-border text-primary"
+                                    role="status"
+                                >
+                                    <span class="visually-hidden"
+                                        >Loading activities...</span
+                                    >
+                                </div>
+                            </div>
+                            <div v-else class="text-center py-3 text-muted">
+                                <p class="mb-0">No recent activities</p>
+                            </div>
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Error Alert -->
+            <div
+                v-if="error"
+                class="alert alert-danger alert-dismissible fade show"
+                role="alert"
+            >
+                <strong>Error!</strong> {{ error }}
+                <button
+                    type="button"
+                    class="btn-close"
+                    @click="error = null"
+                ></button>
             </div>
         </div>
     </div>
 </template>
 
 <script>
+import axios from "axios";
+import VueApexCharts from "vue3-apexcharts";
+
 export default {
+    components: {
+        apexchart: VueApexCharts,
+    },
     name: "DashboardContent",
     data() {
         return {
-            currentUser: {
-                name: "John Doe",
-                email: "john@example.com",
+            selectedYear: new Date().getFullYear(),
+            yearOptions: this.generateYearOptions(),
+            monthlyChartOptions: {
+                chart: {
+                    type: "bar",
+                    height: 350,
+                },
+                plotOptions: {
+                    bar: {
+                        horizontal: false,
+                        columnWidth: "50%",
+                    },
+                },
+                dataLabels: {
+                    enabled: true,
+                },
+                xaxis: {
+                    categories: [
+                        "Jan",
+                        "Feb",
+                        "Mar",
+                        "Apr",
+                        "May",
+                        "Jun",
+                        "Jul",
+                        "Aug",
+                        "Sep",
+                        "Oct",
+                        "Nov",
+                        "Dec",
+                    ],
+                },
+                title: {
+                    text: "Leave Request Status by Month",
+                    align: "center",
+                    style: {
+                        fontSize: "18px",
+                    },
+                },
             },
-            stats: {
-                totalEmployees: 156,
-                pendingRequests: 12,
-                approvedToday: 8,
-                totalThisMonth: 45,
-            },
-            recentActivities: [
+            monthlySeries: [
                 {
-                    id: 1,
-                    icon: "✅",
-                    message: "Leave request approved for Sarah Johnson",
-                    time: "2 hours ago",
+                    name: "Approved",
+                    data: Array(12).fill(0),
                 },
                 {
-                    id: 2,
-                    icon: "📝",
-                    message: "New leave request from Mike Davis",
-                    time: "4 hours ago",
+                    name: "Rejected",
+                    data: Array(12).fill(0),
                 },
                 {
-                    id: 3,
-                    icon: "👥",
-                    message: "New employee John Smith added",
-                    time: "1 day ago",
-                },
-                {
-                    id: 4,
-                    icon: "❌",
-                    message: "Leave request rejected for Alex Brown",
-                    time: "2 days ago",
+                    name: "Pending",
+                    data: Array(12).fill(0),
                 },
             ],
+            loading: false,
+            loadingActivities: false,
+            error: null,
+            currentUser: {
+                name: "Loading...",
+                email: "",
+                role: "user",
+            },
+            stats: {
+                totalUsers: 0,
+                pendingRequests: 0,
+                approvedToday: 0,
+                totalThisMonth: 0,
+            },
+            recentActivities: [],
         };
     },
-    mounted() {
-        this.loadUserData();
-        this.loadDashboardStats();
+    async mounted() {
+        await this.loadDashboardData();
+        await this.loadMonthlyChartData();
+
+        // Auto refresh setiap 5 menit
+        this.refreshInterval = setInterval(() => {
+            this.loadDashboardData(false);
+            this.loadMonthlyChartData();
+        }, 300000); // 5 minutes
+    },
+    beforeUnmount() {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+        }
     },
     computed: {
         userRole() {
-            const userData = JSON.parse(
-                localStorage.getItem("user_data") || "{}"
-            );
-            return userData.role || "user";
+            return this.currentUser.role || "user";
         },
     },
     methods: {
+        generateYearOptions() {
+            const currentYear = new Date().getFullYear();
+            const years = [];
+            for (let i = 0; i < 5; i++) {
+                years.push(currentYear - i);
+            }
+            return years;
+        },
         formatNumber(num) {
-            return new Intl.NumberFormat().format(num);
+            return new Intl.NumberFormat().format(num || 0);
         },
 
         navigateTo(path) {
             this.$router.push(path);
         },
 
-        loadUserData() {
-            const userData = localStorage.getItem("user_data");
-            if (userData) {
-                try {
-                    this.currentUser = JSON.parse(userData);
-                } catch (error) {
-                    console.error("Error parsing user data:", error);
+        async loadDashboardData(showLoading = true) {
+            if (showLoading) {
+                this.loading = true;
+            }
+            this.error = null;
+
+            try {
+                // Load semua data secara parallel
+                const [userResponse, statsResponse, activitiesResponse] =
+                    await Promise.all([
+                        this.loadUserProfile(),
+                        this.loadDashboardStats(),
+                        this.loadRecentActivities(),
+                    ]);
+
+                // User Profile
+                if (userResponse && userResponse.success) {
+                    this.currentUser = userResponse.data;
                 }
+
+                // Stats
+                if (statsResponse && statsResponse.success) {
+                    this.stats = statsResponse.data;
+                }
+
+                // Activities - Perbaikan untuk memastikan data langsung tampil
+                if (activitiesResponse && activitiesResponse.success) {
+                    this.recentActivities = activitiesResponse.data || [];
+                }
+            } catch (error) {
+                console.error("Error loading dashboard data:", error);
+                this.error =
+                    "Failed to load dashboard data. Please try refreshing the page.";
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async loadMonthlyChartData() {
+            try {
+                const token = localStorage.getItem("auth_token");
+                const response = await axios.get(
+                    "/api/dashboard/monthly-stats",
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            Accept: "application/json",
+                        },
+                        params: {
+                            year: this.selectedYear, // Perbaikan: gunakan selectedYear, bukan hardcode
+                        },
+                    }
+                );
+
+                if (response.data.success) {
+                    const stats = response.data.data.monthlyStats;
+
+                    // Perbaikan: pastikan data dalam urutan yang benar (Jan-Dec)
+                    this.monthlySeries = [
+                        {
+                            name: "Approved",
+                            data: stats.map((s) => parseInt(s.approved) || 0),
+                        },
+                        {
+                            name: "Rejected",
+                            data: stats.map((s) => parseInt(s.rejected) || 0),
+                        },
+                        {
+                            name: "Pending",
+                            data: stats.map((s) => parseInt(s.pending) || 0),
+                        },
+                    ];
+
+                    // Update chart title dengan tahun yang dipilih
+                    this.monthlyChartOptions = {
+                        ...this.monthlyChartOptions,
+                        title: {
+                            ...this.monthlyChartOptions.title,
+                            text: `Leave Request Status by Month (${this.selectedYear})`,
+                        },
+                    };
+                }
+            } catch (error) {
+                console.error("Error loading monthly chart data:", error);
+                this.error = "Failed to load chart data.";
+            }
+        },
+
+        async loadUserProfile() {
+            try {
+                const token = localStorage.getItem("auth_token");
+                if (!token) {
+                    this.$router.push("/login");
+                    return { success: false };
+                }
+
+                const response = await axios.get("/api/dashboard/profile", {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: "application/json",
+                    },
+                });
+
+                return response.data;
+            } catch (error) {
+                console.error("Error loading user profile:", error);
+                if (error.response?.status === 401) {
+                    localStorage.removeItem("auth_token");
+                    this.$router.push("/login");
+                }
+                return { success: false, error: error.message };
             }
         },
 
         async loadDashboardStats() {
             try {
-                console.log("Dashboard stats loaded");
+                const token = localStorage.getItem("auth_token");
+                const response = await axios.get("/api/dashboard/stats", {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: "application/json",
+                    },
+                });
+
+                return response.data;
             } catch (error) {
                 console.error("Error loading dashboard stats:", error);
+                return { success: false, error: error.message };
+            }
+        },
+
+        async loadRecentActivities() {
+            try {
+                const token = localStorage.getItem("auth_token");
+                const response = await axios.get("/api/dashboard/activities", {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: "application/json",
+                    },
+                    params: {
+                        limit: 5,
+                    },
+                });
+
+                return response.data;
+            } catch (error) {
+                console.error("Error loading recent activities:", error);
+                return { success: false, error: error.message };
+            }
+        },
+
+        async refreshActivities() {
+            this.loadingActivities = true;
+
+            try {
+                const response = await this.loadRecentActivities();
+                if (response && response.success) {
+                    this.recentActivities = response.data || [];
+                } else {
+                    this.error = "Failed to refresh activities.";
+                }
+            } catch (error) {
+                console.error("Error refreshing activities:", error);
+                this.error = "Failed to refresh activities.";
+            } finally {
+                this.loadingActivities = false;
             }
         },
     },
@@ -328,6 +617,11 @@ export default {
 .activity-content p {
     font-size: 0.9rem;
     line-height: 1.4;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
 }
 
 @keyframes fadeIn {

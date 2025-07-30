@@ -6,7 +6,7 @@ use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\LeaveRequestController;
 use App\Http\Controllers\API\LeaveApprovalController;
-use App\Models\LeaveRequest;
+use App\Http\Controllers\API\DashboardController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -16,6 +16,12 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::prefix('dashboard')->group(function () {
+        Route::get('/stats', [DashboardController::class, 'getStats']);
+        Route::get('/activities', [DashboardController::class, 'getRecentActivities']);
+        Route::get('/profile', [DashboardController::class, 'getUserProfile']);
+        Route::get('/monthly-stats', [DashboardController::class, 'getMonthlyChartStats']);
+    });
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::apiResource('users', UserController::class);
